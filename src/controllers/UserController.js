@@ -4,6 +4,8 @@ const bcrypt = require('bcryptjs');
 const Op = db.Sequelize.Op;
 const config = require('../configs/conf');
 const jwt = require('jsonwebtoken');
+const Path = require('path');
+const Resize = require('../_helpers/ResizeImg')
 
 module.exports = {
     async register(req, res, next) {
@@ -22,11 +24,28 @@ module.exports = {
 
         let password = req.body.password;
         let email = req.body.email;
+        let avatar = '';
+
         try {
+            if (!req.file && gender == 0) {//check if user upload avtar of use default avatar
+                avatar = 'male.png';
+            } else if (!req.file && gender == 1) {
+                avatar = 'female.png';
+            } else {
+                const imagePath = Path.join(__dirname, '../..//public/avatars');
+                // console.log(req.file);
+
+                const fileUpload = new Resize(imagePath);
+                if (!req.file) {
+                    res.status(401).json({ error: 'Please provide an image' });
+                }
+                avatar = await fileUpload.save(req.file.buffer);
+            }
             let username = await userName(firstName, lastName);
             let user = await User.create({
                 firstName: firstName,
                 lastName: lastName,
+                avatar: avatar,
                 gender: (gender == 0) ? "male" : "female",
                 dateOfBird: dateOfBird,
                 phoneNumber: phoneNumber,
@@ -72,7 +91,7 @@ module.exports = {
                 return res.status(401).json(response);
             }
             let token = jwt.sign({ id: user.id }, config.jwt.secretkey, {
-                expiresIn: 86400 //24h
+                expiresIn: 7200 //24h
             })
             response.returnCode = 1;
             response.returnMessage = "Login success";
@@ -83,14 +102,15 @@ module.exports = {
         }
     },
     async allUsers(req, res, next) {
-        try {
-            let response = {
-                returnCode: 1,
-                returnMessage: "",
-                data: {
+        let response = {
+            returnCode: 1,
+            returnMessage: "",
+            data: {
 
-                }
-            };
+            }
+        };
+        try {
+
             let users = await User.findAll({
                 attributes: { exclude: ["password"] }
             })
@@ -103,6 +123,42 @@ module.exports = {
             response.returnCode = 0;
             res.status(500).json(response);
         }
+    },
+    async userInfo(req, res, next) {//get user info 
+        let response = {
+            returnCode: 1,
+            returnMessage: "",
+            data: {
+
+            }
+        };
+        try {
+            let port = "8081";
+            let url = req.protocol + '://' + req.hostname + (port ? ':' + port : '') + '/avatars';
+
+            let user = await User.findByPk(req.userId);
+            delete user.dataValues.password;
+            response.returnMessage = "Success";
+            response.data.user = user;
+            response.data.user.avatar = url + '/' + response.data.user.avatar;
+            res.status(200).json(response);
+
+        } catch (error) {
+            response.returnMessage = "Get failed " + error;
+            response.returnCode = 0;
+            res.status(500).json(response);
+        }
+    },
+    async upload(req, res, next) {
+        const imagePath = Path.join(__dirname, '../..//public/avatars');
+        // console.log(req.file);
+
+        const fileUpload = new Resize(imagePath);
+        if (!req.file) {
+            res.status(401).json({ error: 'Please provide an image' });
+        }
+        const filename = await fileUpload.save(req.file.buffer);
+        return res.status(200).json({ name: req.body.thach });
     }
 }
 

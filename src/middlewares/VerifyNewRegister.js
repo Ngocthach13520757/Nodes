@@ -12,9 +12,10 @@ module.exports = {
                 returnCode: 1,
                 returnMessage: "",
                 data: {
-    
+
                 }
             };
+            console.log(req.body);
             let user = await User.findOne({
                 where: {
                     [Sequelize.Op.or]: [{ email: req.body.email }]

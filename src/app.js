@@ -11,9 +11,13 @@ const Role = db.Role;
 
 const app = express();
 app.use(morgan('combined'))
-app.use(bodyParser.json())
+//app.use(bodyParser.json())
 app.use(cors())
 app.use(errorHandler);
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.static('public'))
+
 
 require('../routes')(app);
 db.sequelize.sync({ force: false }).then(() => {
